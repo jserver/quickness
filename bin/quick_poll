@@ -1,0 +1,62 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+import subprocess
+import sys
+import time
+from ConfigParser import SafeConfigParser
+
+import boto
+
+
+aparser = argparse.ArgumentParser(description='Create an ec2 instance.')
+aparser.add_argument('-f', '--file', dest='filename', default='ec2.conf',
+                           help='Name of the config file in etc/private - defaults to ec2.conf')
+args = aparser.parse_args()
+
+
+cparser = SafeConfigParser()
+cparser.read(os.path.join('etc/private/', args.filename))
+
+
+def get_instance(conn, name):
+    reservations = conn.get_all_instances(filters={'tag:Name': 'quickness', 'tag:Quickness': name})
+    for res in reservations:
+        for instance in res.instances:
+            return instance
+
+
+def copy_private(conn, name):
+    instance = get_instance(conn, name)
+    # Time to copy in the private files
+    subprocess.call('scp -i $AWS_IDENTITY etc/private/* ubuntu@%s:~/.quickness_repo/etc/private' % instance.public_dns_name, shell=True)
+    subprocess.call('scp -i $AWS_IDENTITY formulas/*_private ubuntu@%s:~/.quickness_repo/formulas' % instance.public_dns_name, shell=True)
+    subprocess.call('scp -i $AWS_IDENTITY tweaks/*_private ubuntu@%s:~/.quickness_repo/tweaks' % instance.public_dns_name, shell=True)
+
+    print '%s [%s]: %s (%s)' % (name, instance.id, instance.state, instance.public_dns_name)
+    print 'login in to your new machine using the command - bin/quick_ec2 ssh %s' % name
+
+
+try:
+    aws_identity = os.environ['AWS_IDENTITY']
+except KeyError:
+    print 'Please set the AWS_IDENTITY environment variable to create a new ec2 machine'
+    sys.exit()
+
+conn = boto.connect_ec2()
+
+sqs = boto.connect_sqs()
+q = sqs.get_queue(cparser.defaults()['queue'])
+print 'polling... <ctrl-c to quit>'
+finished = False
+while not finished:
+    time.sleep(5)
+    rs = q.get_messages(10)
+    for m in rs:
+        body = m.get_body()
+        print body
+        q.delete_message(m)
+        name, process, status = body.split(':')
+        if status == 'finished':
+            copy_private(conn, name)

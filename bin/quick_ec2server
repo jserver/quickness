@@ -2,7 +2,7 @@
 
 import argparse
 import os
-import subprocess
+#import subprocess
 import sys
 import time
 from ConfigParser import SafeConfigParser
@@ -11,17 +11,20 @@ import boto
 
 
 aparser = argparse.ArgumentParser(description='Create an ec2 instance.')
-aparser.add_argument('-f', '--file', metavar='file', dest='filename', default='ec2.conf',
+aparser.add_argument('-f', '--file', dest='filename', default='ec2.conf',
                            help='Name of the config file in etc/private - defaults to ec2.conf')
-aparser.add_argument('section', metavar='section', type=str,
+aparser.add_argument('-n', '--no-poll', action='store_true',
+                           help='Poll sqs until server has finished bootstapping')
+aparser.add_argument('section', type=str,
                            help='Name of the section within the config file')
-aparser.add_argument('name', metavar='name', type=str,
+aparser.add_argument('name', type=str,
                            help='Name of the quickness machine')
 args = aparser.parse_args()
 
 
 cparser = SafeConfigParser()
 cparser.read(os.path.join('etc/private/', args.filename))
+
 
 try:
     aws_identity = os.environ['AWS_IDENTITY']
@@ -38,21 +41,39 @@ profile_text = """
 . \$HOME/.quickness_repo/etc/profile"""
 
 user_data = """#!/bin/bash
-su -l -c "mkdir bin && echo 'echo -n loading' > bin/bootstrap_status && chmod 755 bin/bootstrap_status" ubuntu
-"""
 
-with open('tweaks/bootstrap', 'r') as f:
-    user_data += f.read()
+send_message() {
+    python ec2status.py %(access_key)s %(secret_key)s %(queue)s %(name)s bootstrap $1
+}
 
-user_data += """
-if [ -d /home/ubuntu ]; then
-    su -l -c "git clone %s %s .quickness_repo" ubuntu
-    su -l -c "echo '%s' >> .profile" ubuntu
-fi
+cd /root
+wget -q %(ec2status)s
+send_message started
 
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get -qq update
+send_message updated
+
+apt-get -o DPkg::Options::=--force-confnew upgrade -qq -y < /dev/null
+send_message upgraded
+
+apt-get -qq -y install autoconf automake build-essential git libtool ntp unzip
+send_message installed
+
+su -l -c "git clone %(branch)s %(repo)s .quickness_repo" ubuntu
+su -l -c "echo '%(profile)s' >> .profile" ubuntu
 cp /home/ubuntu/.quickness_repo/etc/motd.tail /etc/motd.tail
-su -l -c "echo 'echo -n finished' > bin/bootstrap_status" ubuntu
-""" % (branch_option, cparser.get(args.section, 'git_repo'), profile_text)
+
+send_message finished
+""" % {'branch': branch_option,
+       'repo': cparser.get(args.section, 'git_repo'),
+       'profile': profile_text,
+       'ec2status': cparser.get(args.section, 'ec2status_url'),
+       'access_key': cparser.get(args.section, 'access_key'),
+       'secret_key': cparser.get(args.section, 'secret_key'),
+       'queue': cparser.get(args.section, 'queue_url'),
+       'name': args.name}
 
 conn = boto.connect_ec2()
 
@@ -85,45 +106,38 @@ if cparser.has_option(args.section, 'placement'):
     kwargs['placement'] = cparser.get(args.section, 'placement')
 
 reservation = image.run(**kwargs)
+
+# Give it a sec to come up
+time.sleep(5)
 instance = reservation.instances[0]
+instance.add_tag('Name', 'quickness')
+instance.add_tag('Quickness', args.name)
 
-time.sleep(10)
-conn.create_tags([instance.id], {'Name': 'quickness', 'Quickness': args.name})
+'''
+if args.no_poll:
+    sys.exit()
 
-while True:
-    time.sleep(20)
-    status = instance.update()
-    if status == 'running':
-        break
-    print status
-
-print 'Your instance is now running, waiting for bootstrapping to start...'
-# Give it a min to get the bootstrapping started
-time.sleep(60)
-file_exists = False
-while True:
-    time.sleep(30)
-    if not file_exists:
-        status = subprocess.check_output(
-                'ssh -o "StrictHostKeyChecking no" -i $AWS_IDENTITY ubuntu@%s "test -e bin/bootstrap_status && echo -n true || echo -n false"' % instance.public_dns_name,
-                shell=True)
-        if status == 'true':
-            print 'bootstrap started'
-            file_exists = True
-        else:
-            print 'waiting on bootstrap'
-        continue
-    status = subprocess.check_output(
-            'ssh -o "StrictHostKeyChecking no" -i $AWS_IDENTITY ubuntu@%s bin/bootstrap_status' % instance.public_dns_name,
-            shell=True)
-    if status == 'finished':
-        break
-    print status
+sqs = boto.connect_sqs()
+q = sqs.get_queue(cparser.get(args.section, 'queue'))
+print 'polling...'
+finished = False
+while not finished:
+    time.sleep(5)
+    rs = q.get_messages()
+    for m in rs:
+        body = m.get_body()
+        if body.startswith('%s:' % args.name):
+            print body
+            q.delete_message(m)
+            if body.endswith('finished'):
+                finished = True
 
 # Time to copy in the private files
+instance.update()
 subprocess.call('scp -i $AWS_IDENTITY etc/private/* ubuntu@%s:~/.quickness_repo/etc/private' % instance.public_dns_name, shell=True)
 subprocess.call('scp -i $AWS_IDENTITY formulas/*_private ubuntu@%s:~/.quickness_repo/formulas' % instance.public_dns_name, shell=True)
 subprocess.call('scp -i $AWS_IDENTITY tweaks/*_private ubuntu@%s:~/.quickness_repo/tweaks' % instance.public_dns_name, shell=True)
 
 print '%s [%s]: %s (%s)' % (args.name, instance.id, instance.state, instance.public_dns_name)
 print 'login in to your new machine using the command - bin/quick_ec2 ssh %s' % args.name
+'''
