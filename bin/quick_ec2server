@@ -37,15 +37,17 @@ if cparser.has_option(args.section, 'git_branch'):
 
 user_data = """#!/bin/bash
 
+QUICKNESS_SCRIPTS=/root
+
 echo "### Quickness SQS Messenger
 sqs_message() {
-    python ec2status.py %(access_key)s %(secret_key)s %(queue)s %(name)s \$1 \$2
+    python \$QUICKNESS_SCRIPTS/ec2sqs.py %(access_key)s %(secret_key)s %(queue)s %(name)s \$1 \$2
 }" >> /etc/profile.d/sqs.sh
 
 source /etc/profile.d/sqs.sh
 
 cd /root
-wget -q %(ec2status)s
+wget -q %(ec2sqs)s
 sqs_message bootstrap started
 
 export DEBIAN_FRONTEND=noninteractive
@@ -68,7 +70,7 @@ cp /home/ubuntu/.quickness_repo/etc/motd.tail /etc/motd.tail
 sqs_message bootstrap finished
 """ % {'branch': branch_option,
        'repo': cparser.get(args.section, 'git_repo'),
-       'ec2status': cparser.get(args.section, 'ec2status_url'),
+       'ec2sqs': cparser.get(args.section, 'ec2sqs_url'),
        'access_key': cparser.get(args.section, 'access_key'),
        'secret_key': cparser.get(args.section, 'secret_key'),
        'queue': cparser.get(args.section, 'queue_url'),
