@@ -14,12 +14,12 @@ if [ -z "$AWS_IDENTITY" ]; then
 fi
 
 if [ "$1" = "ssh" ]; then
-    ec2_dns="$(python scripts/ec2search.py $2)"
+    ec2_dns="$(python scripts/ec2dns.py $2)"
     if [ -n "$ec2_dns" ]; then
         ssh -i $AWS_IDENTITY ubuntu@$ec2_dns
     else
         echo "Unable to get public dns of $1"
     fi
 else
-    python scripts/ec2$1.py $2
+    python scripts/ec2action.py $1 $2
 fi

@@ -30,9 +30,9 @@ def get_instance(conn, name):
 def copy_private(conn, name):
     instance = get_instance(conn, name)
     # Time to copy in the private files
-    subprocess.call('scp -i $AWS_IDENTITY etc/private/* ubuntu@%s:~/.quickness_repo/etc/private' % instance.public_dns_name, shell=True)
-    subprocess.call('scp -i $AWS_IDENTITY formulas/*_private ubuntu@%s:~/.quickness_repo/formulas' % instance.public_dns_name, shell=True)
-    subprocess.call('scp -i $AWS_IDENTITY tweaks/*_private ubuntu@%s:~/.quickness_repo/tweaks' % instance.public_dns_name, shell=True)
+    subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no etc/private/* ubuntu@%s:~/.quickness_repo/etc/private' % instance.public_dns_name, shell=True)
+    subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no formulas/*_private ubuntu@%s:~/.quickness_repo/formulas' % instance.public_dns_name, shell=True)
+    subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no tweaks/*_private ubuntu@%s:~/.quickness_repo/tweaks' % instance.public_dns_name, shell=True)
 
     print '%s [%s]: %s (%s)' % (name, instance.id, instance.state, instance.public_dns_name)
     print 'login in to your new machine using the command - bin/quick_ec2 ssh %s' % name

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-import sys
 
 import boto
 
@@ -15,10 +14,7 @@ args = aparser.parse_args()
 conn = boto.connect_ec2()
 
 # Make sure quickness name is going to be unique
-instances = conn.get_all_instances()
-for res in instances:
+reservations = conn.get_all_instances(filters={'tag:Name': 'quickness', 'tag:Quickness': args.name})
+for res in reservations:
     for instance in res.instances:
-        if instance.tags.has_key('Quickness'):
-            if args.name == instance.tags.get('Quickness'):
-                print instance.public_dns_name
-                sys.exit()
+        print instance.public_dns_name

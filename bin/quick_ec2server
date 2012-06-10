@@ -2,7 +2,6 @@
 
 import argparse
 import os
-#import subprocess
 import sys
 import time
 from ConfigParser import SafeConfigParser
@@ -36,39 +35,39 @@ branch_option = ""
 if cparser.has_option(args.section, 'git_branch'):
     branch_option = "-b %s" % cparser.get(args.section, 'git_branch')
 
-profile_text = """
-### Quickness
-. \$HOME/.quickness_repo/etc/profile"""
-
 user_data = """#!/bin/bash
 
-send_message() {
-    python ec2status.py %(access_key)s %(secret_key)s %(queue)s %(name)s bootstrap $1
-}
+echo "### Quickness SQS Messenger
+sqs_message() {
+    python ec2status.py %(access_key)s %(secret_key)s %(queue)s %(name)s \$1 \$2
+}" >> /etc/profile.d/sqs.sh
+
+source /etc/profile.d/sqs.sh
 
 cd /root
 wget -q %(ec2status)s
-send_message started
+sqs_message bootstrap started
 
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get -qq update
-send_message updated
+sqs_message bootstrap updated
 
 apt-get -o DPkg::Options::=--force-confnew upgrade -qq -y < /dev/null
-send_message upgraded
+sqs_message bootstrap upgraded
 
 apt-get -qq -y install autoconf automake build-essential git libtool ntp unzip
-send_message installed
+sqs_message bootstrap installed
 
 su -l -c "git clone %(branch)s %(repo)s .quickness_repo" ubuntu
-su -l -c "echo '%(profile)s' >> .profile" ubuntu
+su -l -c "echo '### Quickness
+source \$HOME/.quickness_repo/etc/profile' >> .profile" ubuntu
+
 cp /home/ubuntu/.quickness_repo/etc/motd.tail /etc/motd.tail
 
-send_message finished
+sqs_message bootstrap finished
 """ % {'branch': branch_option,
        'repo': cparser.get(args.section, 'git_repo'),
-       'profile': profile_text,
        'ec2status': cparser.get(args.section, 'ec2status_url'),
        'access_key': cparser.get(args.section, 'access_key'),
        'secret_key': cparser.get(args.section, 'secret_key'),
@@ -79,8 +78,8 @@ conn = boto.connect_ec2()
 
 # Make sure quickness name is going to be unique
 quick_machines = []
-instances = conn.get_all_instances()
-for res in instances:
+reservations = conn.get_all_instances(filters={'tag:Name': 'quickness'})
+for res in reservations:
     for instance in res.instances:
         if instance.tags.has_key('Quickness'):
             quick_machines.append(instance.tags.get('Quickness'))
@@ -112,32 +111,3 @@ time.sleep(5)
 instance = reservation.instances[0]
 instance.add_tag('Name', 'quickness')
 instance.add_tag('Quickness', args.name)
-
-'''
-if args.no_poll:
-    sys.exit()
-
-sqs = boto.connect_sqs()
-q = sqs.get_queue(cparser.get(args.section, 'queue'))
-print 'polling...'
-finished = False
-while not finished:
-    time.sleep(5)
-    rs = q.get_messages()
-    for m in rs:
-        body = m.get_body()
-        if body.startswith('%s:' % args.name):
-            print body
-            q.delete_message(m)
-            if body.endswith('finished'):
-                finished = True
-
-# Time to copy in the private files
-instance.update()
-subprocess.call('scp -i $AWS_IDENTITY etc/private/* ubuntu@%s:~/.quickness_repo/etc/private' % instance.public_dns_name, shell=True)
-subprocess.call('scp -i $AWS_IDENTITY formulas/*_private ubuntu@%s:~/.quickness_repo/formulas' % instance.public_dns_name, shell=True)
-subprocess.call('scp -i $AWS_IDENTITY tweaks/*_private ubuntu@%s:~/.quickness_repo/tweaks' % instance.public_dns_name, shell=True)
-
-print '%s [%s]: %s (%s)' % (args.name, instance.id, instance.state, instance.public_dns_name)
-print 'login in to your new machine using the command - bin/quick_ec2 ssh %s' % args.name
-'''

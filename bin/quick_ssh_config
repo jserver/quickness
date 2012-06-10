@@ -35,8 +35,8 @@ with open('%s/.ssh/config' % os.environ['HOME'], 'w+') as f:
     f.write(new_config)
     f.write('\n###BEGIN### Quickness\n\n')
 
-    instances = conn.get_all_instances()
-    for res in instances:
+    reservations = conn.get_all_instances(filters={'tag:Name': 'quickness'})
+    for res in reservations:
         for instance in res.instances:
             if instance.tags.has_key('Quickness'):
                 name = instance.tags.get('Quickness')
@@ -46,5 +46,5 @@ with open('%s/.ssh/config' % os.environ['HOME'], 'w+') as f:
                     f.write('  IdentityFile %s\n' % aws_identity)
                     f.write('  User ubuntu\n')
                     f.write('\n')
-                    
+
     f.write('###END###\n')
