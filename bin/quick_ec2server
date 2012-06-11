@@ -109,7 +109,7 @@ if cparser.has_option(args.section, 'placement'):
 reservation = image.run(**kwargs)
 
 # Give it a sec to come up
-time.sleep(5)
+time.sleep(3)
 instance = reservation.instances[0]
 instance.add_tag('Name', 'quickness')
 instance.add_tag('Quickness', args.name)

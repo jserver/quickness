@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import glob
 import multiprocessing
 import os
 import subprocess
@@ -27,12 +28,13 @@ def copy_private(name):
         return
 
     # Time to copy in the private files
-    if 0 != subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no etc/private/* ubuntu@%s:~/.quickness_repo/etc/private' % instance.public_dns_name, shell=True):
-        print '%s - unable to scp etc/private' % name
-    if 0 != subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no formulas/*_private ubuntu@%s:~/.quickness_repo/formulas' % instance.public_dns_name, shell=True):
-        print '%s - unable to scp private formulas' % name
-    if 0 != subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no tweaks/*_private ubuntu@%s:~/.quickness_repo/tweaks' % instance.public_dns_name, shell=True):
-        print '%s - unable to scp private tweaks' % name
+    print 'Copying private files to new machine'
+    if glob.glob('etc/private/*'):
+        subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no etc/private/* ubuntu@%s:~/.quickness_repo/etc/private' % instance.public_dns_name, shell=True)
+    if glob.glob('formulas/*_private'):
+        subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no formulas/*_private ubuntu@%s:~/.quickness_repo/formulas' % instance.public_dns_name, shell=True)
+    if glob.glob('tweaks/*_private'):
+        subprocess.call('scp -i $AWS_IDENTITY -o StrictHostKeyChecking=no tweaks/*_private ubuntu@%s:~/.quickness_repo/tweaks' % instance.public_dns_name, shell=True)
 
     print '%s [%s]: %s (%s)' % (name, instance.id, instance.state, instance.public_dns_name)
     print 'To login: bin/quick_ec2 ssh %s' % name
