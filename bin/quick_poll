@@ -4,6 +4,7 @@ import argparse
 import glob
 import multiprocessing
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -40,7 +41,14 @@ def copy_private(name):
     print 'To login: bin/quick_ec2 ssh %s' % name
 
 
+def signal_handler(signal, frame):
+    print 'You pressed ctrl+c!'
+    sys.exit(0)
+
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
+
     aparser = argparse.ArgumentParser(description='Create an ec2 instance.')
     aparser.add_argument('-f', '--file', dest='filename', default='ec2.conf',
                                help='Name of the config file in etc/private - defaults to ec2.conf')
@@ -59,7 +67,7 @@ if __name__ == '__main__':
 
     sqs = boto.connect_sqs()
     q = sqs.get_queue(cparser.defaults()['queue'])
-    print 'polling... <ctrl-c to quit>'
+    print 'polling... <ctrl+c to quit>'
     finished = False
     while not finished:
         time.sleep(3)
