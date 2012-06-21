@@ -5,45 +5,36 @@ from HTMLParser import HTMLParser
 
 
 class MyHTMLParser(HTMLParser):
-    def __init__(self):
-        self.reset()
-        self.inside_tr = False
-        self.inside_td = False
-        self.inside_p = False
-        self.inside_a = False
-        self.inside_tt = False
+    def __init__(self, region='us-east-1', arch='64-bit', storage='ebs'):
+        self.image = ''
+        self.region = region
+        self.arch = arch
+        self.storage = storage
 
-    def handle_starttag(self, tag, attrs):
-        if tag == 'tr':
-            self.inside_tr = True
-        elif self.inside_tr and tag == 'td':
-            self.inside_td = True
-        elif self.inside_td and tag == 'p':
-            self.inside_p = True
-        elif self.inside_p and tag == 'a':
-            self.inside_a = True
-        elif self.inside_a and tag == 'tt':
-            self.inside_tt = True
+        self.reset()
+        self.is_region = False
+        self.is_arch = False
+        self.is_storage = False
 
     def handle_endtag(self, tag):
         if tag == 'tr':
-            self.inside_tr = False
-            self.inside_td = False
-            self.inside_p = False
-            self.inside_a = False
-            self.inside_tt = False
+            self.is_region = False
+            self.is_arch = False
+            self.is_storage = False
 
     def handle_data(self, data):
-        if self.inside_tt and data.startswith('ami'):
-            print data
+        text = data.strip()
+        if self.is_region and self.is_arch and self.is_storage and text.startswith('ami-'):
+            print text
+        elif text == self.region:
+            self.is_region = True
+        elif self.is_region and text == self.arch:
+            self.is_arch = True
+        elif self.is_arch and text == self.storage:
+            self.is_storage = True
 
-        if data.strip():
-            if self.inside_p and not self.inside_a and not self.inside_tt and data.strip() not in ['us-east-1', '64-bit', 'ebs']:
-                self.inside_tr = False
-                self.inside_td = False
-                self.inside_p = False
-                self.inside_a = False
-                self.inside_tt = False
+    def get_image_name(self):
+        return self.image
 
 page = urllib2.urlopen('http://cloud-images.ubuntu.com/precise/current/')
 text = page.read()
