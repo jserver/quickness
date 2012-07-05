@@ -14,8 +14,12 @@ import boto
 aparser = argparse.ArgumentParser(description='Create an ec2 instance.')
 aparser.add_argument('-f', '--file', dest='filename', default='ec2.conf',
                            help='Name of the config file in etc/private - defaults to ec2.conf')
-aparser.add_argument('-n', '--no-poll', action='store_true',
+aparser.add_argument('-n', '--num', dest='num_instances', default=1,
+                           help='Number of instances to create')
+aparser.add_argument('-p', '--poll', action='store_true',
                            help='Poll sqs until server has finished bootstapping')
+aparser.add_argument('-v', '--verbose', action='store_true',
+                           help='Show all messages when polling')
 aparser.add_argument('section', type=str,
                            help='Name of the section within the config file')
 aparser.add_argument('name', type=str,
@@ -145,10 +149,12 @@ if image_name == 'current':
         print 'Unable to get an ami with details contained in your private ec2.conf'
         sys.exit()
 
-print 'Creating an instance using image %s' % image_name
+print 'Creating %s instance(s) using image %s' % (args.num_instances, image_name)
 image = conn.get_image(image_name)
 
 kwargs = {
+    'min_count': args.num_instances,
+    'max_count': args.num_instances,
     'key_name': cparser.get(args.section, 'key_name'),
     'instance_type': cparser.get(args.section, 'instance_type'),
     'security_group_ids': [cparser.get(args.section, 'security_group')],
@@ -161,6 +167,16 @@ reservation = image.run(**kwargs)
 
 # Give it a sec to come up
 time.sleep(3)
-instance = reservation.instances[0]
-instance.add_tag('Name', 'quickness')
-instance.add_tag('Quickness', args.name)
+if args.num_instances == 1:
+    instance = reservation.instances[0]
+    instance.add_tag('Name', 'quickness')
+    instance.add_tag('Quickness', args.name)
+else:
+    for idx, instance in enumerate(reservation.instances):
+        instance.add_tag('Name', 'quickness')
+        instance.add_tag('Quickness', '%s-%s' % (args.name, idx + 1))
+
+if args.poll:
+    sys.path.append(os.getcwd() + '/scripts')
+    from poll_sqs import start_polling
+    start_polling(args.filename, verbose=args.verbose)

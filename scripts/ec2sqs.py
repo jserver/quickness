@@ -17,8 +17,12 @@ aparser.add_argument('status', type=str)
 args = aparser.parse_args()
 
 
+with open('/etc/hostname', 'r') as file:
+    contents = file.read()
+hostname = contents[:-1]
+
 conn = boto.connect_sqs(args.access_key, args.secret_key)
 q = Queue(conn, args.queue)
 m = Message()
-m.set_body('%s:%s:%s' % (args.name, args.process, args.status))
+m.set_body('%s:%s:%s:%s' % (args.name, hostname, args.process, args.status))
 q.write(m)
