@@ -30,16 +30,13 @@ sudo su -l -c "sudo pip install pyflakes"
 
 cd $HOME
 git clone https://github.com/tpope/vim-pathogen.git .vim
-mkdir .vim/{backup,bundle,tmp}
+mkdir .vim/backup
+mkdir .vim/bundle
+mkdir .vim/tmp
 
 cd $HOME/.vim/bundle
-git clone https://github.com/kien/ctrlp.vim.git
-git clone https://github.com/scrooloose/nerdcommenter.git
-git clone https://github.com/scrooloose/nerdtree.git
 git clone https://github.com/scrooloose/syntastic.git
-git clone https://github.com/jeetsukumaran/vim-buffergator.git
 git clone https://github.com/tpope/vim-fugitive.git
-git clone https://github.com/jmcantrell/vim-virtualenv.git
 
 cd $HOME
 echo "backup/*" >> $HOME/.vim/.git/info/exclude

@@ -1,0 +1,32 @@
+###
+### Vim for python developers
+###
+
+###
+### Initialize
+###
+
+is_formula_installed && return || formula_init
+
+
+###
+### Dependencies
+###
+
+. $Q/vim
+. $Q/python_dev
+
+
+###
+### Installation
+###
+
+cd $HOME/.vim/bundle
+git clone https://github.com/jmcantrell/vim-virtualenv.git
+
+
+###
+### Teardown
+###
+
+formula_teardown

@@ -96,7 +96,11 @@ formula_init() {
     done
 
     eval ${FORMULA}_PREV_DIR=$PWD
-    cd $QUICKNESS_SRC
+    if [ -n "$1" ]; then
+        cd $1
+    else
+        cd $QUICKNESS_SRC
+    fi
 }
 
 formula_teardown() {
