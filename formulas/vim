@@ -14,19 +14,10 @@ is_formula_installed && return || formula_init
 
 
 ###
-### Dependencies
-###
-
-. $Q/python_dev
-
-
-###
 ### Installation
 ###
 
 sudo apt-get -y install vim-nox
-
-sudo su -l -c "sudo pip install pyflakes"
 
 cd $HOME
 git clone https://github.com/tpope/vim-pathogen.git .vim
@@ -35,7 +26,6 @@ mkdir .vim/bundle
 mkdir .vim/tmp
 
 cd $HOME/.vim/bundle
-git clone https://github.com/scrooloose/syntastic.git
 git clone https://github.com/tpope/vim-fugitive.git
 
 cd $HOME

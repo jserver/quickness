@@ -21,7 +21,10 @@ is_formula_installed && return || formula_init
 ### Installation
 ###
 
+sudo su -l -c "sudo pip install pyflakes"
+
 cd $HOME/.vim/bundle
+git clone https://github.com/scrooloose/syntastic.git
 git clone https://github.com/jmcantrell/vim-virtualenv.git
 
 

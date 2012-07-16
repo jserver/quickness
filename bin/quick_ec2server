@@ -98,7 +98,7 @@ sqs_message bootstrap updated
 apt-get -o DPkg::Options::=--force-confnew upgrade -qq -y < /dev/null
 sqs_message bootstrap upgraded
 
-apt-get -qq -y install autoconf automake build-essential git libtool ntp unzip
+apt-get -qq -y install autoconf automake build-essential curl git libtool ntp unzip
 sqs_message bootstrap installed
 
 su -l -c "git clone %(branch)s %(repo)s .quickness_repo" ubuntu
