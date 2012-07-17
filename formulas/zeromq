@@ -22,7 +22,7 @@ is_formula_installed && return || formula_init
 if [ "$ZEROMQ_PACKAGE" = "ubuntu" ]; then
     sudo apt-get -y install libzmq-dev
 else
-    sudo apt-get -y install uuid-dev
+    sudo apt-get -y install libtool uuid-dev
     wget $ZEROMQ_URL
     tar zxf $ZEROMQ_FILENAME
     cd $ZEROMQ_DIRNAME
