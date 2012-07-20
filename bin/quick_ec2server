@@ -31,6 +31,7 @@ cparser = SafeConfigParser()
 cparser.read(os.path.join('etc/private/', args.filename))
 
 
+# aws_identity needs to point to your amazon key (.pem)
 try:
     aws_identity = os.environ['AWS_IDENTITY']
 except KeyError:
@@ -38,6 +39,7 @@ except KeyError:
     sys.exit()
 
 
+# this gets the latest precise daily build
 class MyHTMLParser(HTMLParser):
     def __init__(self, region='us-east-1', arch='64-bit', storage='ebs'):
         self.image = ''
@@ -71,10 +73,21 @@ class MyHTMLParser(HTMLParser):
         return self.image
 
 
+# in case you have a particular non-master branch of quickness that you want to work with
 branch_option = ""
 if cparser.has_option(args.section, 'git_branch'):
     branch_option = "-b %s" % cparser.get(args.section, 'git_branch')
 
+
+# in case no extra packages need to be installed by default
+package_list = cparser.get(args.section, 'packages')
+if package_list:
+    install_command = 'apt-get -qq -y install %s' % package_list
+else:
+    install_command = ''
+
+
+# this is run when the ec2 machine first boots
 user_data = """#!/bin/bash
 
 QUICKNESS_SCRIPTS=/root
@@ -98,7 +111,7 @@ sqs_message bootstrap updated
 apt-get -o DPkg::Options::=--force-confnew upgrade -qq -y < /dev/null
 sqs_message bootstrap upgraded
 
-apt-get -qq -y install autoconf automake build-essential git ntp unzip
+%(install_command)s
 sqs_message bootstrap installed
 
 su -l -c "git clone %(branch)s %(repo)s .quickness_repo" ubuntu
@@ -110,6 +123,7 @@ cp /home/ubuntu/.quickness_repo/etc/motd.tail /etc/motd.tail
 sqs_message bootstrap finished
 """ % {'branch': branch_option,
        'repo': cparser.get(args.section, 'git_repo'),
+       'install_command': install_command,
        'ec2sqs': cparser.get(args.section, 'ec2sqs_url'),
        'access_key': cparser.get(args.section, 'access_key'),
        'secret_key': cparser.get(args.section, 'secret_key'),
